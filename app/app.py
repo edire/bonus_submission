@@ -83,7 +83,7 @@ def logout():
 
 @app.route("/")
 def index():
-    return "<a href='/login'>Login with Google</a>"
+    return render_template('login.html')
 
 
 @app.route('/home', methods=['GET', 'POST'])

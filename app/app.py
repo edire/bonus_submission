@@ -41,30 +41,36 @@ def login():
         access_type='offline',
         include_granted_scopes='true'
     )
-    app.secret_key = state
+    session['state'] = state
     return redirect(authorization_url)
 
 
 @app.route('/authorize')
 def authorize():
-    flow = Flow.from_client_secrets_file(
-        CLIENT_SECRETS_FILE, 
-        scopes=SCOPES, 
-        redirect_uri=url_for('authorize', _external=True, _scheme='https')
-    )
-    flow.fetch_token(authorization_response=request.url)
-    credentials = flow.credentials
-    userinfo_response = requests.get(
-        'https://www.googleapis.com/oauth2/v2/userinfo',
-        headers={'Authorization': f'Bearer {credentials.token}'}
-    )
-    if userinfo_response.ok:
-        userinfo = userinfo_response.json()
-        session["user_email"] = userinfo.get("email")
-    else:
-        raise Exception('Failed to get user email')
-    session["user_logged_in"] = True
-    return redirect(url_for("home"))
+    try:
+        flow = Flow.from_client_secrets_file(
+            CLIENT_SECRETS_FILE, 
+            scopes=SCOPES, 
+            state=session.get('state'),
+            redirect_uri=url_for('authorize', _external=True, _scheme='https')
+        )
+        flow.fetch_token(authorization_response=request.url)
+        credentials = flow.credentials
+        userinfo_response = requests.get(
+            'https://www.googleapis.com/oauth2/v2/userinfo',
+            headers={'Authorization': f'Bearer {credentials.token}'}
+        )
+        userinfo_response.raise_for_status()
+        if userinfo_response.ok:
+            userinfo = userinfo_response.json()
+            session["user_email"] = userinfo.get("email")
+        else:
+            raise Exception('Failed to get user email')
+        session["user_logged_in"] = True
+        return redirect(url_for("home"))
+    except Exception as e:
+        session.clear()
+        return "Authorization failed. Please try again.", 500
 
 
 @app.route("/logout", methods=["POST"])

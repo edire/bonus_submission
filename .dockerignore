@@ -1,0 +1,6 @@
+.env
+volume/
+logs/
+__pycache__
+test*
+deploy.sh
